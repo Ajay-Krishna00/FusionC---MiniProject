@@ -1,7 +1,8 @@
 int main()
 {
-  int x = 10;
-  int y = x + 5;
-  y = y * 2;
-  return y;
+  int x = 0;
+  while (x < 5) {
+    x = x + 1;
+  }
+  return x;
 }

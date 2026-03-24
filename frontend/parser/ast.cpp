@@ -35,6 +35,8 @@ namespace fusionc::frontend::parser
         return "Return";
       case AstNodeKind::ExpressionStatement:
         return "ExpressionStatement";
+      case AstNodeKind::While:
+        return "While";
       default:
         return "Unknown";
       }
@@ -168,6 +170,10 @@ namespace fusionc::frontend::parser
     {
       return parseBlock();
     }
+    if (match(lexer::TokenType::Keyword, "while"))
+    {
+        return parseWhile();
+    }
 
     if (match(lexer::TokenType::Keyword, "return"))
     {
@@ -207,6 +213,49 @@ namespace fusionc::frontend::parser
     statement->children.push_back(std::move(parsed));
     return statement;
   }
+
+  std::unique_ptr<AstNode> Parser::parseWhile()
+{
+    auto whileNode = std::make_unique<AstNode>();
+    whileNode->kind = AstNodeKind::While;
+    whileNode->value = "while";
+
+    // '('
+    if (!match(lexer::TokenType::Punctuation, "("))
+    {
+        addError("Expected '(' after while.");
+        return nullptr;
+    }
+
+    // condition
+    auto condition = parseExpression();
+    if (!condition)
+    {
+        addError("Invalid while condition.");
+        return nullptr;
+    }
+
+    // ')'
+    if (!match(lexer::TokenType::Punctuation, ")"))
+    {
+        addError("Expected ')' after condition.");
+        return nullptr;
+    }
+
+    // body (can be block or single statement)
+    auto body = parseStatement();
+    if (!body)
+    {
+        addError("Invalid while body.");
+        return nullptr;
+    }
+
+    // attach children
+    whileNode->children.push_back(std::move(condition));
+    whileNode->children.push_back(std::move(body));
+
+    return whileNode;
+}
 
   std::unique_ptr<AstNode> Parser::parseDeclarationOrAssignment()
   {
@@ -271,6 +320,35 @@ namespace fusionc::frontend::parser
   }
 
   std::unique_ptr<AstNode> Parser::parseExpression()
+  {
+    auto left = parseAdditive();
+    if (!left)
+    {
+      return nullptr;
+    }
+
+    while (match(lexer::TokenType::Operator, "<") || match(lexer::TokenType::Operator, ">") || match(lexer::TokenType::Operator, "=="))
+    {
+      const std::string op = previous().lexeme;
+      auto right = parseAdditive();
+      if (!right)
+      {
+        addError("Expected expression after operator '" + op + "'.");
+        return nullptr;
+      }
+
+      auto binary = std::make_unique<AstNode>();
+      binary->kind = AstNodeKind::BinaryExpression;
+      binary->value = op;
+      binary->children.push_back(std::move(left));
+      binary->children.push_back(std::move(right));
+      left = std::move(binary);
+    }
+
+    return left;
+  }
+
+  std::unique_ptr<AstNode> Parser::parseAdditive()
   {
     auto left = parseTerm();
     if (!left)

@@ -9,7 +9,18 @@ namespace fusionc::backend::codegen
   ExecutionResult execute(const middleend::ir::Program &program)
   {
     std::unordered_map<std::string, int> slots;
+    std::unordered_map<std::string, size_t> labels;
     ExecutionResult result;
+    size_t pc = 0;
+
+    // First pass: collect labels
+    for (size_t i = 0; i < program.size(); ++i)
+    {
+      if (program[i].op == "label")
+      {
+        labels[program[i].dst] = i;
+      }
+    }
 
     auto read = [&](const std::string &name) -> int
     {
@@ -21,8 +32,9 @@ namespace fusionc::backend::codegen
       return std::stoi(name); // fall back to literal
     };
 
-    for (const auto &ins : program)
+    while (pc < program.size())
     {
+      const auto &ins = program[pc];
       if (ins.op == "const")
       {
         slots[ins.dst] = std::stoi(ins.arg1);
@@ -47,6 +59,18 @@ namespace fusionc::backend::codegen
       {
         slots[ins.dst] = read(ins.arg1) / read(ins.arg2);
       }
+      else if (ins.op == "lt")
+      {
+        slots[ins.dst] = read(ins.arg1) < read(ins.arg2) ? 1 : 0;
+      }
+      else if (ins.op == "gt")
+      {
+        slots[ins.dst] = read(ins.arg1) > read(ins.arg2) ? 1 : 0;
+      }
+      else if (ins.op == "eq")
+      {
+        slots[ins.dst] = read(ins.arg1) == read(ins.arg2) ? 1 : 0;
+      }
       else if (ins.op == "ret")
       {
         result.ok = true;
@@ -54,6 +78,24 @@ namespace fusionc::backend::codegen
         result.message = "Program executed";
         return result;
       }
+      else if (ins.op == "label")
+      {
+        // do nothing
+      }
+      else if (ins.op == "jmp")
+      {
+        pc = labels[ins.dst];
+        continue;
+      }
+      else if (ins.op == "jz")
+      {
+        if (read(ins.dst) == 0)
+        {
+          pc = labels[ins.arg1];
+          continue;
+        }
+      }
+      ++pc;
     }
 
     result.ok = true;

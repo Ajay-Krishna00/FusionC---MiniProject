@@ -22,6 +22,7 @@ namespace fusionc::frontend::parser
     Identifier,
     Return,
     ExpressionStatement,
+    While,
     Unknown
   };
 
@@ -44,8 +45,10 @@ namespace fusionc::frontend::parser
     std::unique_ptr<AstNode> parseFunction();
     std::unique_ptr<AstNode> parseBlock();
     std::unique_ptr<AstNode> parseStatement();
+    std::unique_ptr<AstNode> parseWhile();
     std::unique_ptr<AstNode> parseDeclarationOrAssignment();
     std::unique_ptr<AstNode> parseExpression();
+    std::unique_ptr<AstNode> parseAdditive();
     std::unique_ptr<AstNode> parseTerm();
     std::unique_ptr<AstNode> parseFactor();
 

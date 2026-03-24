@@ -18,6 +18,7 @@ namespace fusionc::middleend::ir
       {
         Program prog;
         tempCounter_ = 0;
+        labelCounter_ = 0;
 
         for (const auto &child : root.children)
         {
@@ -35,6 +36,13 @@ namespace fusionc::middleend::ir
       {
         std::ostringstream oss;
         oss << "t" << tempCounter_++;
+        return oss.str();
+      }
+
+      std::string newLabel()
+      {
+        std::ostringstream oss;
+        oss << "L" << labelCounter_++;
         return oss.str();
       }
 
@@ -74,6 +82,17 @@ namespace fusionc::middleend::ir
         else if (stmt.kind == AstNodeKind::Block)
         {
           emitBlock(stmt, prog);
+        }
+        else if (stmt.kind == AstNodeKind::While)
+        {
+          std::string startLabel = newLabel();
+          std::string endLabel = newLabel();
+          prog.push_back(Instruction{"label", startLabel, "", ""});
+          std::string cond = emitExpr(*stmt.children[0], prog);
+          prog.push_back(Instruction{"jz", cond, endLabel, ""});
+          emitStatement(*stmt.children[1], prog);
+          prog.push_back(Instruction{"jmp", startLabel, "", ""});
+          prog.push_back(Instruction{"label", endLabel, "", ""});
         }
       }
 
@@ -128,6 +147,18 @@ namespace fusionc::middleend::ir
           {
             op = "div";
           }
+          else if (expr.value == "<")
+          {
+            op = "lt";
+          }
+          else if (expr.value == ">")
+          {
+            op = "gt";
+          }
+          else if (expr.value == "==")
+          {
+            op = "eq";
+          }
           else
           {
             throw std::runtime_error("Unsupported binary operator: " + expr.value);
@@ -148,6 +179,7 @@ namespace fusionc::middleend::ir
       }
 
       int tempCounter_ = 0;
+      int labelCounter_ = 0;
     };
   } // namespace
 
